@@ -446,8 +446,9 @@ import handbrake;
 $main::config = new Config::Simple(syntax => 'ini');
 
 # set default values
-#$main::config->param('debug.enabled', '0');
-#$main::config->param('device.name', '');
+$main::config->param('debug.enabled', '0');
+$main::config->param('device.name', '');
+$main::config->param('device.eject', '0');
 
 # read in config file
 if (-f ($ENV{'HOME'} . '/.handbrake-encode.conf')) {
@@ -461,16 +462,18 @@ if (-f ($ENV{'HOME'} . '/.handbrake-encode.conf')) {
 # parse command line options
 unless (
     GetOptions(
-        'help|h|?'   => sub { help(); exit(0); },
-        'debug'      => sub { $main::config->param('debug.enabled', '1') },
-        'device|d=s' => sub { $main::config->param('device.name', $_[1]); },
-        'min-time=s' => sub { $main::config->param('time.min-time', $_[1]); },
-        'max-time=s' => sub { $main::config->param('time.max-time', $_[1]); },
-        'name=s'     => sub { $main::config->param('name.name', $_[1]); },
-        'continue|c' => sub { $main::config->param('name.continue', '1') },
-        'format=s'   => sub { $main::config->param('name.format', $_[1]); },
-        'audio=s'    => sub { $main::config->param('audio.languages', $_[1]); },
-        'subtitle=s' => sub { $main::config->param('subtitle.languages', $_[1]); },
+        'help|h|?'     => sub { help(); exit(0); },
+        'debug'        => sub { $main::config->param('debug.enabled', '1') },
+        'device|d=s'   => sub { $main::config->param('device.name', $_[1]); },
+        'min-time=s'   => sub { $main::config->param('time.min-time', $_[1]); },
+        'max-time=s'   => sub { $main::config->param('time.max-time', $_[1]); },
+        'name=s'       => sub { $main::config->param('name.name', $_[1]); },
+        'continue|c'   => sub { $main::config->param('name.continue', '1') },
+        'format=s'     => sub { $main::config->param('name.format', $_[1]); },
+        'audio=s'      => sub { $main::config->param('audio.languages', $_[1]); },
+        'subtitle=s'   => sub { $main::config->param('subtitle.languages', $_[1]); },
+        'eject|e'      => sub { $main::config->param('device.eject', $_[1]); },
+        'eject-path=s' => sub { $main::config->param('device.eject-path', $_[1]); },
     )
 ) {
     # There were some errors with parsing command line options - show help.
@@ -495,7 +498,7 @@ if (defined($main::config->param('device.HandBrakeCLI')) and length($main::confi
 if (!defined($main::handbrakecli)) {
     my $which = which('HandBrakeCLI');
     if (!defined($which)) {
-        print STDERR "Can't find the 'HandBrakeCLI' in your \$PATH\n";
+        print STDERR "Can't find the 'HandBrakeCLI' program in your \$PATH\n";
         exit(1);
     }
     $main::handbrakecli = $which;
@@ -503,6 +506,30 @@ if (!defined($main::handbrakecli)) {
 if (!defined($main::handbrakecli)) {
     print STDERR "Was not able to identify a working 'HandBrakeCLI'\n";
     exit(1);
+}
+
+# look for eject program
+$main::eject = undef;
+if ($main::config->param('device.eject') == 1) {
+    if (defined($main::config->param('device.eject-path')) and length($main::config->param('device.eject-path')) > 0) {
+        if (!-x $main::config->param('device.eject-path')) {
+            print STDERR "eject-path setting (" . $main::config->param('device.eject-path') . ") is invalid\n";
+            exit(1);
+        }
+        $main::eject = $main::config->param('device.eject-path');
+    }
+    if (!defined($main::eject)) {
+        my $which = which('eject');
+        if (!defined($which)) {
+            print STDERR "Can't find the 'eject' program in your \$PATH\n";
+            exit(1);
+        }
+        $main::eject = $which;
+    }
+    if (!defined($main::eject)) {
+        print STDERR "Was not able to identify a working 'eject'\n";
+        exit(1);
+    }
 }
 
 
@@ -611,6 +638,12 @@ foreach my $title_nr (sort(keys(%{$result->{'titles'}}))) {
 }
 
 print "Finished $this_number titles\n";
+
+# eject the disk
+if ($main::config->param('device.eject') == 1) {
+    system($main::eject . ' ' . $main::config->param('device.name'));
+}
+
 exit(0);
 
 
@@ -647,6 +680,8 @@ sub help {
     print "                 audio track is to include in the output file\n";
     print "    --subtitle   comma-separated list of 3-char language codes where the\n";
     print "                 subtitle is to include in the output file\n";
+    print " -e --eject      eject the disk after job is done\n";
+    print "    --eject-path path to eject program\n";
     print "\n\n";
     print "If ~/.handbrake-encode.conf exists it will be parsed before applying\n";
     print "commandline options\n";
