@@ -61,6 +61,7 @@ Available options:
                  audio track is to include in the output file
     --subtitle   comma-separated list of 3-char language codes where the
                  subtitle is to include in the output file
+ -t --time       display the time when encoding started
 
 If ~/.handbrake-encode.conf exists it will be parsed before applying
 commandline options

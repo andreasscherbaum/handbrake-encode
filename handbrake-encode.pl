@@ -449,6 +449,7 @@ $main::config = new Config::Simple(syntax => 'ini');
 $main::config->param('debug.enabled', '0');
 $main::config->param('device.name', '');
 $main::config->param('device.eject', '0');
+$main::config->param('time.display', '0');
 
 # read in config file
 if (-f ($ENV{'HOME'} . '/.handbrake-encode.conf')) {
@@ -474,6 +475,7 @@ unless (
         'subtitle=s'   => sub { $main::config->param('subtitle.languages', $_[1]); },
         'eject|e'      => sub { $main::config->param('device.eject', $_[1]); },
         'eject-path=s' => sub { $main::config->param('device.eject-path', $_[1]); },
+        'time|t'       => sub { $main::config->param('time.display', $_[1]); },
     )
 ) {
     # There were some errors with parsing command line options - show help.
@@ -630,6 +632,9 @@ foreach my $title_nr (sort(keys(%{$result->{'titles'}}))) {
     #print "written subtitle: $written_subtitle\n";
 
     my $start_time = time();
+    if ($main::config->param('time.display') == 1) {
+        print "Time: " . human_timestamp() . "\n";
+    }
     $main::handbrake->encode($title_nr, $output_file_name, $format, $written_audio, $written_subtitle);
     my $end_time = time();
     print "Time for encoding: " . formatted_time($end_time - $start_time) . "\n";
@@ -682,6 +687,7 @@ sub help {
     print "                 subtitle is to include in the output file\n";
     print " -e --eject      eject the disk after job is done\n";
     print "    --eject-path path to eject program\n";
+    print " -t --time       display the time when encoding started\n";
     print "\n\n";
     print "If ~/.handbrake-encode.conf exists it will be parsed before applying\n";
     print "commandline options\n";
@@ -866,4 +872,24 @@ sub formatted_size {
   }
 
   return $return;
+}
+
+
+# human_timestamp()
+#
+# return a human readable timestamp from localtime()
+#
+# parameter:
+#  none
+# return:
+#  - string with timestamp
+sub human_timestamp {
+  # get actual timestamp
+  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time());
+  # calculate the tm struct differences
+  $mon++;
+  $wday++;
+  $year = $year + 1900;
+  # build and return timestamp
+  return sprintf("%02d.%02d.%04d %02d:%02d:%02d", $mday, $mon, $year, $hour, $min, $sec);
 }
