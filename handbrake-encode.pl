@@ -311,6 +311,7 @@ sub encode {
     my $format = shift;
     my $audio = shift;
     my $subtitle = shift;
+    my $preset = shift;
 
     $self->prechecks();
 
@@ -318,9 +319,18 @@ sub encode {
     $exec .= ' --format ' . $format;
     $exec .= ' --markers';
     $exec .= ' --title ' . $title;
-    $exec .= ' --keep-display-aspect';
+    if (defined($preset) and length($preset) > 0) {
+        $exec .= ' --preset="' . $preset . '"';
+        # the HandBrakeCLI which is shipped with Ubuntu 12.10 is crashing because the default encoder 'faac' is not available:
+        #   ERROR: Invalid audio codec: 0x100
+        #   Segmentation fault (core dumped)
+        # switch to another encoder
+        $exec .= ' -E ffaac';
+    } else {
+        $exec .= ' --keep-display-aspect';
+        $exec .= ' --encoder x264';
+    }
     $exec .= ' --previews 30';
-    $exec .= ' --encoder x264';
     if (length($audio) > 0) {
         $exec .= ' --audio "' . $audio . '"';
     }
@@ -476,6 +486,7 @@ unless (
         'eject|e'      => sub { $main::config->param('device.eject', $_[1]); },
         'eject-path=s' => sub { $main::config->param('device.eject-path', $_[1]); },
         'time|t'       => sub { $main::config->param('time.display', $_[1]); },
+        'preset=s'     => sub { $main::config->param('presets.preset', $_[1]); },
     )
 ) {
     # There were some errors with parsing command line options - show help.
@@ -570,6 +581,7 @@ foreach my $title_nr (sort(keys(%{$result->{'titles'}}))) {
     print "Title: " . $title_nr . " (" . $this_number . " of " . $result->{'real_number_titles'} . ")\n";
     my $name = $main::config->param('name.name');
     my $format = $main::config->param('name.format');
+    my $preset = $main::config->param('presets.preset');
 
     my $output_file_name = undef;
     if ($main::config->param('name.continue') == 1) {
@@ -635,7 +647,7 @@ foreach my $title_nr (sort(keys(%{$result->{'titles'}}))) {
     if ($main::config->param('time.display') == 1) {
         print "Time: " . human_timestamp() . "\n";
     }
-    $main::handbrake->encode($title_nr, $output_file_name, $format, $written_audio, $written_subtitle);
+    $main::handbrake->encode($title_nr, $output_file_name, $format, $written_audio, $written_subtitle, $preset);
     my $end_time = time();
     print "Time for encoding: " . formatted_time($end_time - $start_time) . "\n";
     my @stat = stat($output_file_name);
@@ -688,6 +700,8 @@ sub help {
     print " -e --eject      eject the disk after job is done\n";
     print "    --eject-path path to eject program\n";
     print " -t --time       display the time when encoding started\n";
+    print "    --preset     HandBrake preset\n";
+    print "                 defaults to: Normal\n";
     print "\n\n";
     print "If ~/.handbrake-encode.conf exists it will be parsed before applying\n";
     print "commandline options\n";
