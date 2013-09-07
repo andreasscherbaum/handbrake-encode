@@ -386,6 +386,7 @@ sub handbrake {
     my $device = $self->{device};
 
     my $exec = $handbrake . ' ' . $options . ' ' . '--input ' . $device . ' 2>&1';
+    #print "exec: $exec\n";
     my $result = `$exec`;
     my $exit_status = $?;
     my $exit_text = $!;
@@ -650,8 +651,12 @@ foreach my $title_nr (sort(keys(%{$result->{'titles'}}))) {
     $main::handbrake->encode($title_nr, $output_file_name, $format, $written_audio, $written_subtitle, $preset);
     my $end_time = time();
     print "Time for encoding: " . formatted_time($end_time - $start_time) . "\n";
-    my @stat = stat($output_file_name);
-    print "File size: " . formatted_size($stat[7]) . "\n";
+    if (-f $output_file_name) {
+        my @stat = stat($output_file_name);
+        print "File size: " . formatted_size($stat[7]) . "\n";
+    } else {
+        print STDERR "Encoding failed!\n";
+    }
 }
 
 print "Finished $this_number titles\n";
