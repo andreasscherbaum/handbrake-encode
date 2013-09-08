@@ -117,8 +117,8 @@ sub set_device {
     my $self = shift;
     my $device = shift;
 
-    if (!-b $device) {
-        print STDERR "DVD device ($device) is not a block device\n";
+    if (!-b $device and !-f $device) {
+        print STDERR "DVD device ($device) is not a block device and not an ISO file\n";
         exit(1);
     }
     $self->{device} = $device;
@@ -495,7 +495,7 @@ unless (
     exit(1);
 }
 
-if (!-b $main::config->param('device.name')) {
+if (!-e $main::config->param('device.name')) {
     print STDERR "DVD device name is not set\n";
     exit(1);
 }
@@ -662,7 +662,7 @@ foreach my $title_nr (sort(keys(%{$result->{'titles'}}))) {
 print "Finished $this_number titles\n";
 
 # eject the disk
-if ($main::config->param('device.eject') == 1) {
+if ($main::config->param('device.eject') == 1 and -b $main::config->param('device.name')) {
     system($main::eject . ' ' . $main::config->param('device.name'));
 }
 
