@@ -800,6 +800,10 @@ sub formatted_time {
     $return .= $seconds . 's';
   }
 
+  if (length($return) == 0) {
+    $return = '0s';
+  }
+
   return $return;
 }
 
